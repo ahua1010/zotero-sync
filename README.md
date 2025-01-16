@@ -1,50 +1,88 @@
-# zotero_library
-Storage for files (pdfs mostly) associated with my Zotero library
+# zotero_sync
+與我的 Zotero 庫關聯的文件（主要是 pdf）的存儲
 
-I followed the instructions [here](https://ikashnitsky.github.io/2019/zotero/) and [here](https://guides.lib.berkeley.edu/c.php?g=4472&p=6647803) to set up Zotero with the Zotlib extension. This setup allows Zotero to manage the syncing of metadata, while letting the user control the syncing of the files themselves (here with GitHub).
+我按照[此處](https://ikashnitsky.github.io/2019/zotero/)的說明進行操作，但是在 zotero 7中 zotFile 已失效，因此改用attanger。
+此設定允許 Zotero 管理元資料的同步，同時讓使用者控製檔案本身的同步（此處為 GitHub）。
 
-This enables using Zotero on multiple computers and syncing the files with Git. For example, if I add a reference and PDF to Zotero on my laptop, I can `git push` the file to GitHub, then on my desktop `git pull` to get the PDF. Zotero itself handles syncing the metadata, as well as highlights, comments, and notes within the PDFs.
+這使得可以在多台電腦上使用 Zotero 並將檔案與 Git 同步。例如，如果我在筆記型電腦上向 Zotero 新增參考和 PDF，我可以將檔案「git push」到 GitHub，然後在桌面上「git pull」來取得 PDF。 Zotero 本身負責同步元資料以及 PDF 中的反白、評論和註釋。
 
-I've also included a bash script in the repo (from [here](https://forums.zotero.org/discussion/72835/using-git-in-combination-with-zotero-for-version-control-and-collaboration)) which checks whether Zotero is closed, then performs a git add, commit, and push of the local repo.
+我還在儲存庫中包含了一個批次檔腳本，檢查 Zotero 是否關閉，然後執行本機儲存庫的git pull、 add、commit和push。
 
-# Instructions
-## Setup new computer
-1) clone this repo to your computer
-2) install [Zotero](https://www.zotero.org)
-3) install the [ZotFile](http://zotfile.com) extension for Zotero
-4) install the [Better BibTeX](https://retorque.re) extension for Zotero
-5) enable Zotero Sync and sign into your account
-6) check Zotero settings match the options in `/settings_menu/`.
-7) set the Base directory (Properties -> Advanced -> Files and Folders) to the `/files/` folder of your local clone of this repo.
+# 操作說明
+## 在設定過的電腦操作
+1. 將此存儲庫clone到你的電腦
+2. 安裝[Zotero](https://www.zotero.org)
+3. 安裝Zotero的[Attanger](https://github.com/MuiseDestiny/zotero-attanger)擴展
+4.安裝 Zotero 的 [Better BibTeX](https://retorque.re) 擴展(可選
+5. 啟用 Zotero Sync 並登入您的帳戶
+6. 檢查 Zotero 設定是否與以下圖片中的選項相符。
+![image](https://github.com/user-attachments/assets/c4588fc5-e3b1-43c6-b4bf-854305fe2976)
+![image](https://github.com/user-attachments/assets/3254063d-5ca9-4887-8746-69a2114859c6)
+  <img width="757" alt="螢幕擷取畫面 2025-01-16 180610" src="https://github.com/user-attachments/assets/00d822bb-547f-4835-b25e-5a175a72253f" />
+  <img width="754" alt="螢幕擷取畫面 2025-01-16 180718" src="https://github.com/user-attachments/assets/484908dd-f9ec-45e0-a842-91abd5710125" />
 
-## Add references and pdf's through Zotero Connect
+## 設定工作排程器以同步到 Git
+### 啟用 「application start」 紀錄記錄
+1. 打開「運行」或按 win+R 輸入 secpol.msc
+2. 導航到本機原則/稽核原則
+3. 按二下 「稽核程序追蹤」並啟用"成功"
+現在，如果您啟動任何應用程式，如果您查看 Event Viewer/Security Log，則每次啟動應用程式時，您都會看到一個 Process Creation 事件 4688。
 
-Use the Zotero Connect extension on web-browsers (firefox) to save pdfs and references to Zotero. Simply click the extension button when on the webpage for an article and it will download and place it in Zotero for you, extracting the metadata (like author, year, journal). Zotfile will automatically place the pdf in the `file` folder of this Git repo, in a subfolder of the authors last name, and rename the file in the format: `lastname_year_title`.
+### 設定工作排程器以自動同步
+1. 打開 工作排程器 並創建新工作
+2. 在 一般 選項卡上，為任務命名
+3. 在 觸發 選項卡上，創建一個新觸發器，然後選擇 On an event （事件發生時） 作為觸發器
+4. 選擇 Custom （自定義），然後按兩下 Edit Event Filter （編輯事件過濾器）
+5. 更改 Filter （過濾器） 設定，如下所示：
+![image](https://github.com/user-attachments/assets/0fe1ca89-6bd5-4859-9a5a-4f7d06903a3e)
+6. 現在切換到 XML 選項卡，並手動啟用編輯查詢，並輸入
+    ```
+    <QueryList>
+      <Query Id="0" Path="Security">
+        <Select Path="Security">
+         *[System[Provider[@Name='Microsoft-Windows-Security-Auditing'] and Task = 13312 and (band(Keywords,9007199254740992)) and (EventID=4688)]] 
+       and
+         *[EventData[Data[@Name='NewProcessName'] and (Data='Your_Process_Path')]]
+        </Select>
+      </Query>
+    </QueryList>
+    ```
+    Your_Process_Path 請改為您的Zotero.exe所在位置
+    然後按兩下Ok關閉觸發器對話框。此觸發器可以監測zotero程序的啟動
+7. 同樣的方式，創建第二個觸發器，過濾器輸入:
+    ```
+    <QueryList>
+      <Query Id="0" Path="Security">
+        <Select Path="Security">
+         *[System[Provider[@Name='Microsoft-Windows-Security-Auditing'] and Task = 13312 and (band(Keywords,9007199254740992)) and (EventID=4688)]] 
+       and
+         *[EventData[Data[@Name='NewProcessName'] and (Data='Your_Process_Path')]]
+        </Select>
+      </Query>
+    </QueryList>
+    ```
+    Your_Process_Path 請改為您的Zotero.exe所在位置
+    然後按兩下Ok關閉觸發器對話框。此觸發器可以監測zotero程序的終止
+8. 在 動作 選項卡上，新增動作"啟動程式"
+9. 設定"程式或指令碼"為複製下來的檔案夾中的 git_push.bat 的路徑
+10. 開始位置設定為複製下來的檔案夾位置
+![image](https://github.com/user-attachments/assets/200a8345-1670-4572-a6df-94ba08cbef16)
 
-## Add reference manually
 
-You can also download the file and drag it into Zotero. Right-click the file and select Manage Attachements -> Rename and Move.
+這會將所有變更或附加檔案推送到 GitHub，並以日期作為提交訊息。
 
-This also applies to adding supplementary files to an existing Zotero reference.
+## 手動新增引用
 
-You can also highlight the entire library to `Rename and Move` everything at once.
+您也可以下載該檔案並將其拖曳到 Zotero 中。右鍵單擊該文件並選擇管理附件 -> 重新命名和移動。
 
-## Update / data metadata
+這也適用於向現有 Zotero 參考新增補充文件。
 
-If Zotero doesn't automatically extract the metadata (typical for older references), you can add it yourself, just make sure to follow the above instructions to rename and move the file.
+您也可以全選整個庫並執行“重新命名和移動”所有內容。
 
-## Delete a file / reference
+## 更新/資料元數據
 
-Since files are now stored outside of the Zotero directory, deleting a reference in Zotero won't delete the actual file. To do this, right-click the reference -> Show File, then delete the file there.
+如果 Zotero 不會自動提取元數據（通常適用於較舊的參考），您可以自行添加元數據，只需確保按照上述說明重命名和移動文件即可。
 
-## Sync to Git
+## 刪除檔案/引用
 
-Select all in Zotero, right-click, Manage Attachments -> Rename and Move.
-
-Close Zotero, and in bash (or GitBash) navigate to this directory and run
-
-```
-. git_push.sh
-```
-
-This will push all changes or additional files to GitHub, with the date as the commit message.
+由於檔案現在儲存在 Zotero 目錄之外，因此刪除 Zotero 中的引用不會刪除實際檔案。為此，右鍵單擊引用 -> 顯示文件位置，然後刪除那裡的文件。
